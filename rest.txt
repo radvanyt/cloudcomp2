@@ -35,8 +35,3 @@ TABLE RECIEVED:
 
 ALL NOT NULL
 
-DB creds:
-host: ec2-23-23-153-145.compute-1.amazonaws.com
-db: df3tcneus00e39
-user: lqxpdtixbaretd
-pass: 87f9154684bac7965c2faaad4ff8a6e78231a8993550eeca15e07811cba68c78
