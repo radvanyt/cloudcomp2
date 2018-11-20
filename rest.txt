@@ -1,0 +1,17 @@
+REST API resources:
+
+GET USERS/{ID}                || returns user ID and username
+GET USERS/{USERNAME}
+
+POST USERS/{ID}               || sends a message to a specific user
+POST USERS/ALL                || broadcasts a message to all users
+
+GET USERS/{ID}/RECIEVED       || returns all messages sent to the user with {ID}
+GET USERS/{ID}/SENT           || returns the message IDs sent by the user
+GET MESSAGES/{ID}             || returns a specific message
+DELETE MESSAGES/{ID}          || delete a specific message (if noone have read it)
+
+PUT USERS/{ID}                || to change username info
+POST USERS/                   || create user
+
+
