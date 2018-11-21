@@ -1,0 +1,252 @@
+swagger: "2.0"
+info:
+  title: Cloud Computing Exercise 2 API
+  description: "A messenger can send messages to a number of recipients. The sender can ask if the message has already been read by whom. A message can be retracted if none of the recipients has already read the message."
+  version: 1.0.0
+
+schemes:
+  - http
+
+consumes:
+  - application/json
+produces:
+  - application/json
+
+securityDefinition:
+  basicAuth:
+    type: basic
+
+security:
+  - basicAuth: []
+
+#-------------------------------------------------------------------------------
+# possible paths to use in the restful API
+#-------------------------------------------------------------------------------
+paths:
+  /users:
+    post:
+      summary: create a new user
+      operationId: controller.add_user
+      parameters:
+        - in: body
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        201:
+          description: Successfully created a new user (returning id)
+          schema:
+            type: integer
+
+    get:
+      summary: return all registered users
+      operationId: controller.get_all_users
+      responses:
+        200:
+          description: Successfully retrieved all users
+          schema:
+            type: array
+            items:
+              type: integer
+
+#-------------------------------------------------------------------------------
+
+  /users/{user_id}:
+    parameters:
+      - in: path 
+        name: user_id
+        required: true
+        type: integer
+
+    post:
+      summary: send a message to a specific user
+      operationId: controller.send_message
+      parameters:
+        - in: body
+          name: message
+          required: true
+          schema:
+            type: string
+      responses:
+        201:
+          description: Message sent (returning message id)
+          schema:
+            type: integer
+        404:
+          description: User-id not found
+
+    put:
+      summary: update username info
+      operationId: controller.update_user
+      parameters:
+        - in: body
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: username info updated
+        404:
+          description: User-id not found
+
+    get:
+      summary: return user-id and username
+      operationId: controller.get_user
+      responses:
+        200:
+          description: user info retrieved successfully
+          schema:
+            type: object
+            required:
+              - user_id
+              - username
+            properties:
+              user_id:
+                type: integer
+              username:
+                type: string
+        404:
+          description: User-id not found
+
+#-------------------------------------------------------------------------------
+  /users/{username}:
+    parameters:
+      - in: path 
+        name: username
+        required: true
+        type: string
+
+    get:
+      summary: return user-id and username
+      operationId: controller.get_user_v2
+      responses:
+        200:
+          description: user info retrieved successfully
+          schema:
+            type: object
+            required:
+              - user_id
+              - username
+            properties:
+              user_id:
+                type: integer
+              username:
+                type: string
+        404:
+          description: User-id not found
+
+
+#-------------------------------------------------------------------------------
+  /users/all:
+    post:
+      summary: send a message to all the users
+      operationId: controller.broadcast_message
+      parameters:
+        - in: body
+          name: message
+          required: true
+          schema:
+            type: string
+      responses:
+        201:
+          description: Message sent to all users (returning message id)
+          schema:
+            type: integer
+
+#-------------------------------------------------------------------------------
+
+  /users/{user_id}/received:
+    get:
+      summary: retrieve all messages received by given user
+      operationId: controller.get_received_messages
+      parameters:
+        - in: path 
+          name: user_id
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Successfully retrieved all received messages
+          schema:
+            type: array
+            items:
+              type: integer
+        404:
+          description: User-id not found
+#-------------------------------------------------------------------------------
+
+  /users/{user_id}/sent:
+    get:
+      summary: retrieve all messages sent by given user
+      operationId: controller.get_sent_messages
+      parameters:
+        - in: path 
+          name: user_id
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Successfully retrieved all sent messages
+          schema:
+            type: array
+            items:
+              type: integer
+        404:
+          description: User-id not found
+
+#-------------------------------------------------------------------------------
+
+  /messages/{msg_id}:
+    parameters:
+      - in: path 
+        name: msg_id
+        required: true
+        type: integer
+
+    get:
+      summary: retrieve a message detail information
+      operationId: controller.get_message
+      responses:
+        200:
+          description: Successfully retrieved message's info
+          schema:
+            $ref: '#/definitions/Message'
+        404:
+          description: Message-id not found
+
+    delete:
+      summary: delete a message (if nobody has read it)
+      operationId: controller.delete_message
+      responses:
+        200:
+          description: Successfully deleted the message
+        404:
+          description: Message-id not found
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# API's models
+#-------------------------------------------------------------------------------
+definitions:
+  Message:
+    type: object
+    required:
+      - text
+      - sender
+      - timestamp
+      - user_read
+    properties:
+      text:
+        type: string
+      sender:
+        type: integer
+      timestamp:
+        type: string
+        format: date-time
+      user_read:
+        type: array
+        items:
+          type: boolean
