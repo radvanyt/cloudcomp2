@@ -12,7 +12,7 @@ consumes:
 produces:
   - application/json
 
-securityDefinition:
+securityDefinitions:
   basicAuth:
     type: basic
 
@@ -143,6 +143,8 @@ paths:
     post:
       summary: send a message to all the users
       operationId: controller.broadcast_message
+      consumes:
+        - text/html
       parameters:
         - in: body
           name: message
@@ -193,6 +195,8 @@ paths:
             type: array
             items:
               type: integer
+        401:
+          description: Invalid credentials
         404:
           description: User-id not found
 
