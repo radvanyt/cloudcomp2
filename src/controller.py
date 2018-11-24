@@ -2,175 +2,229 @@ import psycopg2 as ps
 import connexion
 import flask
 
+import db_utils
+import exceptions
+
+
+connection = ps.connect(
+    dbname="test_db",
+    user="postgres",
+    password="postgres")
+
+
 #users/ ------------------------------------------------------------------------
-def add_user(username):
-    isauthorized, user_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+def add_user(user_info):
+    try:
+        cur = connection.cursor()
+        _check_credentials(cur)
+        new_user_id = db_utils.add_user(cur, user_info["username"], user_info["password"])
+        connection.commit()
 
-    # TODO insert new user
-    ############################
-    user_id = 0
-    ############################
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
-    return user_id, 200
+    return new_user_id, 200
 
 def get_all_users():
-    isauthorized, user_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+    try:
+        cur = connection.cursor()
+        _check_credentials(cur)
+        results = db_utils.query_users(
+            cursor=cur,
+            select_username=True,
+            select_user_id=True)
 
-    # TODO query for all users
-    ############################
-    all_users = []
-    ############################
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
-    return all_users, 200
+    return results, 200
 
 # users/{user_id} --------------------------------------------------------------
 def send_message(user_id, message):
-    isauthorized, sender_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+    try:
+        cur = connection.cursor()
+        receiver_id = user_id
+        sender_id = _check_credentials(cur)
+        message_text = str(message)
 
-    message = str(message)
+        msg_id = db_utils.send_message(
+            cursor=cur,
+            receiver_ids=[receiver_id],
+            sender_id=sender_id,
+            msg_text=message_text)
+        connection.commit()
 
-    # TODO send message to user_id #
-    ############################
-    msg_id = 0
-    ############################
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
+    return msg_id, 200
 
-    return msg_id, 0
+def update_user(user_id, user_info):
+    try:
+        username = user_info["username"]
+        password = user_info["password"]
 
-def update_user(user_id):
-    isauthorized, caller_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+        cur = connection.cursor()
+        _check_credentials(cur)
+        result = db_utils.update_user(
+            cursor=cur,
+            user_id=user_id,
+            new_username=username,
+            new_password=password)
+        if result is None:
+            raise exceptions.NotFoundException(
+                "Given user-id not found")
+        connection.commit()
 
-    user_info = connexion.request.json
 
-    # TODO update user info
-    ################
-    updated_user_id=0
-    ################
-
-    return updated_user_id, 200
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
+    return result, 200
 
 def get_user(user_id):
-    isauthorized, caller_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+    try:
+        cur = connection.cursor()
+        _check_credentials(cur)
+        results = db_utils.query_users(
+            cursor=cur,
+            where_user_id=user_id,
+            select_username=True,
+            select_user_id=True)
+        if len(results) == 0:
+            raise exceptions.NotFoundException(
+                "Given user-id not found")
 
-    # TODO get user info ######################
-    user_info = "{'id':0, 'username':'usrnm'}"#
-    ###########################################
-
-    if user_info is None:
-        _invalid_user_id_response()
-    return user_info, 200
-
-def get_user_v2(username):
-    return "not yet implemented", 500
-
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
+    return results[0], 200
 
 # users/all --------------------------------------------------------------------
 def broadcast_message(message):
-    isauthorized = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+    try:
+        cur = connection.cursor()
+        user_id = _check_credentials(cur)
+        message_text = str(message)
+        message_id = db_utils.broadcast_msg(cur, user_id, message_text)
+        return  message_id, 200
 
-    message = str(message)
-
-    #TODO broadcaste message 
-    ##########################
-    message_id=0
-    ##########################
-
-    return message_id, 200
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
 # user/{user_id}/received ------------------------------------------------------
-def get_received_messages(user_ids):
-    isauthorized, _ = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+def get_received_messages(user_id):
+    try:
+        cur = connection.cursor()
+        _check_credentials(cur)
+        messages = db_utils.get_received_messages(cur, user_id)
+        return  messages, 200
 
-    #TODO retreieve messages from db
-    #################################
-    messages = "[{'text':'testo'}]"
-    #################################
-
-    if messages is None:
-        if not _user_exists():
-            return _invalid_user_id_response()
-    return messages, 200
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
 # user/{user_id}/sent ----------------------------------------------------------
 def get_sent_messages(user_id):
-    isauthorized, _ = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+    try:
+        cur = connection.cursor()
+        _check_credentials(cur)
+        messages = db_utils.get_sent_messages(cur, user_id)
+        return  messages, 200
 
-    print(user_id)
-
-    #TODO retreieve messages from db #
-    messages = "[{'text':'testo'}]"  #
-    ##################################
-
-    if messages is None:
-        if not _user_exists():
-            return _invalid_user_id_response()
-
-    return messages, 200
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
 # message/{msg_id} -------------------------------------------------------------
-def get_message(msg_id):
-    isauthorized, user_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
+def get_message(message_id):
+    try:
+        cur = connection.cursor()
+        user_id = _check_credentials(cur)
+        result = db_utils.get_message(
+            cursor=cur,
+            user_id=user_id,
+            message_id=message_id)
+        connection.commit()
+        return result, 200
 
-    #TODO retreieve message info from db----#
-    message = "{'text':'testo'}"            #
-    #---------------------------------------#
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
-    if message is None: # <-- no entry in the db associated to msg_id
-        return "Invalid message_id", 400
-    else:
-        return message, 200
+def delete_message(message_id):
+    try:
+        cur = connection.cursor()
+        user_id = _check_credentials(cur)
+        db_utils.delete_msg(
+            cursor=cur,
+            user_id=user_id,
+            message_id=message_id)
+        connection.commit()
+        return "Message successfully delated", 200
 
-def delete_message(msg_id):
-    isauthorized, user_id = _check_credentials()
-    if not isauthorized:
-        return _invalid_credentials_response()
-
-    # TODO try to delete message
-
-    wasremoved = True # <--- substitute
-    if wasremoved:
-        return "Successful deletion of message", 200
-    else:
-        # TODO check if the message id is correct
-        return "At least a user has read the message, deletion not possible", 403
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
 
 #-------------------------------------------------------------------------------
 ################################################################################
 
-# TODO implement
-def _user_exists():
-    return True
 
-def _check_credentials():
+def _check_credentials(cursor=None):
     auth = connexion.request.authorization
-    if auth is None:
-        return False, -1
+    headers = connexion.request.headers
 
-    # TODO check that the authorization method is Basic HTTP
-    username = auth.username
-    password = auth.password
-    # TODO check the pair (username, password) is a valid credential
-    return True, 0
+    # check that the authorization method is Basic HTTP
+    if ('Authorization' not in headers or
+        "Basic" != headers['Authorization'].split()[0]):
+        raise exceptions.UnauthorizedException(
+            "You must use Basic HTTP authentication to access this resource")
 
-def _invalid_credentials_response():
-    return "Invalid Credentials", 401
+    # query the database for user information
+    cur = connection.cursor() if cursor is None else cursor
+    user_ids = db_utils.query_users(
+        cursor=cur,
+        where_username=auth.username,
+        where_password=auth.password,
+        select_user_id=True)
+    if cursor is None: cur.close()
 
-def _invalid_user_id_response():
-    return "Invalid user-id", 404
+    # check if the credentials are valid
+    if len(user_ids) == 0:
+        raise exceptions.UnauthorizedException(
+            "Invalid authentication credentials!")
+    return user_ids[0]["user_id"]
