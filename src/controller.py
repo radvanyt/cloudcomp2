@@ -123,7 +123,8 @@ def broadcast_message(message):
         cur = connection.cursor()
         user_id = _check_credentials(cur)
         message_text = str(message)
-        message_id = db_utils.broadcast_msg(cur, user_id, message_text)
+        message_id = db_utils.broadcast_message(cur, user_id, message_text)
+        connection.commit()
         return  message_id, 200
 
     except exceptions.UnauthorizedException as e:
@@ -186,7 +187,7 @@ def delete_message(message_id):
     try:
         cur = connection.cursor()
         user_id = _check_credentials(cur)
-        db_utils.delete_msg(
+        db_utils.delete_message(
             cursor=cur,
             user_id=user_id,
             message_id=message_id)

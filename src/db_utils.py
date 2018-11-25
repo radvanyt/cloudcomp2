@@ -213,7 +213,7 @@ def get_sent_messages(cursor, user_id):
     results = cursor.fetchall()
     return _to_dict(results, ["message_id", "sender_id", "timestamp"])
 
-def delete_msg(cursor, user_id, message_id):
+def delete_message(cursor, user_id, message_id):
     precondition_cmd = '''
     SELECT *
     FROM Receivers
@@ -237,12 +237,25 @@ def delete_msg(cursor, user_id, message_id):
         raise exceptions.ConflictException(
             "Somebody has already read the message, deletion not possible")
 
+
+def broadcast_message(cursor, sender_id, message_text):
+    cursor.execute(
+    '''
+    INSERT INTO Messages (sender_id, message_text, timestamp)
+    VALUES (%s, %s, current_timestamp)
+    RETURNING message_id;''', [sender_id, message_text])
+    message_id = cursor.fetchone()[0]
+
+    cursor.execute(
+    '''
+    INSERT INTO Receivers(message_id, receiver_id)
+        SELECT m.message_id, u.user_id
+        FROM Messages as m, Users as u
+        WHERE m.message_id = %s;''', [message_id])
+    return message_id
+
 #-------------------------------------------------------------------------------
 # TO WORK ON
-
-def broadcast_msg(cursor, sender_id, message_text):
-    return 0
-
 
 #-------------------------------------------------------------------------------
 def _to_dict(results:list, attributes:list):

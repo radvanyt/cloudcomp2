@@ -13,27 +13,5 @@ def main():
     app.run(port=8080)
 
 if __name__ == '__main__':
-
-    connection = ps.connect(
-        dbname="test_db",
-        user="postgres",
-        password="postgres")
-
-    '''
-    import db_utils
-    cursor = connection.cursor()
-    users = [
-         ("TamàsRadvàny", 'password'),
-         ("GiorgioMariani", 'password'),
-         ("DonaldKnuth","1 2 3 4 5 7"),
-         ("xX_pussyDestroyer99_Xx","PaSsWOrD"),
-         ("bob", "bob")]
-
-    u0,p0 = users[0]
-    db_utils.add_user(cursor, u0, p0)
-    cursor.close()'''
-
     main()
-
-    connection.close()
-
+    controller.connection.close()
