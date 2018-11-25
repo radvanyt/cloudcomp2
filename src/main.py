@@ -21,12 +21,9 @@ if __name__ == '__main__':
     if "--heroku" in arg_set:
         arg_set.remove("--heroku")
         database_url = os.environ['DATABASE_URL']
-        port_number=80
+        port_number = int(os.environ['PORT'])
     else:
         database_url = "postgres://postgres:postgres@localhost/test_db"
-        #dbname="test_db"
-        #user="postgres"
-        #password="postgres"
         port_number=8080
 
     if "--debug" in arg_set:
