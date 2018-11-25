@@ -6,10 +6,18 @@ import db_utils
 import exceptions
 
 
-connection = ps.connect(
-    dbname="test_db",
-    user="postgres",
-    password="postgres")
+connection = None 
+
+#dbname="test_db",user="postgres", password="postgres"
+def connect(dbname,user, password):
+    global connection
+    connection = ps.connect(
+        dbname=dbname,
+        user=user,
+        password=password)
+
+def close_connection():
+    connection.close()
 
 
 #users/ ------------------------------------------------------------------------
