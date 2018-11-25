@@ -1,4 +1,5 @@
 import sys
+import os
 
 import psycopg2 as ps
 import connexion
@@ -19,14 +20,13 @@ if __name__ == '__main__':
     arg_set = set(sys.argv[1:])
     if "--heroku" in arg_set:
         arg_set.remove("--heroku")
-        dbname="test_db"
-        user="postgres"
-        password="postgres"
+        database_url = os.environ['DATABASE_URL']
         port_number=80
     else:
-        dbname="test_db"
-        user="postgres"
-        password="postgres"
+        database_url = "postgres://postgres:postgres@localhost/test_db"
+        #dbname="test_db"
+        #user="postgres"
+        #password="postgres"
         port_number=8080
 
     if "--debug" in arg_set:
@@ -38,10 +38,7 @@ if __name__ == '__main__':
     if len(arg_set) != 0:
         print("Wrong synthax, usage: main.py [--debug][--heroku]")
     else:
-        controller.connect(
-            dbname=dbname,
-            user=user,
-            password=password)
+        controller.connect(database_url=database_url)
 
         main(
             debug=debug,

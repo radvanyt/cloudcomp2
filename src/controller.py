@@ -9,12 +9,9 @@ import exceptions
 connection = None 
 
 #dbname="test_db",user="postgres", password="postgres"
-def connect(dbname,user, password):
+def connect(database_url):
     global connection
-    connection = ps.connect(
-        dbname=dbname,
-        user=user,
-        password=password)
+    connection = ps.connect(database_url)
 
 def close_connection():
     connection.close()
