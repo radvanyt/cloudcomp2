@@ -35,10 +35,10 @@ if __name__ == '__main__':
     if len(arg_set) != 0:
         print("Wrong synthax, usage: main.py [--debug][--heroku]")
     else:
-        controller.connect(database_url=database_url)
+        controller.connect(db_url=database_url)
 
         main(
-            debug=debug,
+            debug=True,#debug,
             port_number=port_number)
 
         controller.close_connection()

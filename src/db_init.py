@@ -57,4 +57,3 @@ if __name__ == '__main__':
     else:
         database_url = sys.argv[1]
         db_init(database_url)
-

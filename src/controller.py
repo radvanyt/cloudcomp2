@@ -6,13 +6,24 @@ import db_utils
 import exceptions
 
 
-connection = None 
+connection = None
+database_url = ""
 
-#dbname="test_db",user="postgres", password="postgres"
-def connect(database_url):
+def connect(db_url):
     global connection
+    global database_url
+    database_url = db_url
     connection = ps.connect(database_url)
 
+
+def get_connection():
+    global connection
+    if connection.closed:
+        connect(database_url)
+        return connection
+    else:
+        return connection
+ 
 def close_connection():
     connection.close()
 
@@ -20,10 +31,14 @@ def close_connection():
 #users/ ------------------------------------------------------------------------
 def add_user(user_info):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         _check_credentials(cur)
-        new_user_id = db_utils.add_user(cur, user_info["username"], user_info["password"])
-        connection.commit()
+
+        new_user_id = db_utils.add_user(
+            cursor=cur,
+            username=user_info["username"],
+            password=user_info["password"])
+        return new_user_id, 200
 
     except exceptions.UnauthorizedException as e:
         return e.description, e.code, e.authentication_header
@@ -31,17 +46,18 @@ def add_user(user_info):
         return e.description, e.code
     finally:
         cur.close()
-
-    return new_user_id, 200
 
 def get_all_users():
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         _check_credentials(cur)
-        results = db_utils.query_users(
+
+        users = db_utils.query_users(
             cursor=cur,
             select_username=True,
             select_user_id=True)
+        return users, 200
+
 
     except exceptions.UnauthorizedException as e:
         return e.description, e.code, e.authentication_header
@@ -49,23 +65,22 @@ def get_all_users():
         return e.description, e.code
     finally:
         cur.close()
-
-    return results, 200
 
 # users/{user_id} --------------------------------------------------------------
 def send_message(user_id, message):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
+
         receiver_id = user_id
         sender_id = _check_credentials(cur)
-        message_text = str(message)
 
         msg_id = db_utils.send_message(
             cursor=cur,
             receiver_ids=[receiver_id],
             sender_id=sender_id,
-            msg_text=message_text)
-        connection.commit()
+            msg_text= str(message))
+        return msg_id, 200
+
 
     except exceptions.UnauthorizedException as e:
         return e.description, e.code, e.authentication_header
@@ -73,24 +88,28 @@ def send_message(user_id, message):
         return e.description, e.code
     finally:
         cur.close()
-    return msg_id, 200
 
 def update_user(user_id, user_info):
     try:
         username = user_info["username"]
         password = user_info["password"]
 
-        cur = connection.cursor()
-        _check_credentials(cur)
+        cur = get_connection().cursor()
+        authorized_user_id = _check_credentials(cur)
+        if authorized_user_id != user_id:
+            raise exceptions.UnauthorizedException(
+                "Not enough rights to change the given user's info")
+
         result = db_utils.update_user(
             cursor=cur,
             user_id=user_id,
             new_username=username,
             new_password=password)
+
         if result is None:
-            raise exceptions.NotFoundException(
-                "Given user-id not found")
-        connection.commit()
+            raise exceptions.NotFoundException("Given user-id not found")
+        else:
+            return result, 200
 
 
     except exceptions.UnauthorizedException as e:
@@ -99,12 +118,12 @@ def update_user(user_id, user_info):
         return e.description, e.code
     finally:
         cur.close()
-    return result, 200
 
 def get_user(user_id):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         _check_credentials(cur)
+
         results = db_utils.query_users(
             cursor=cur,
             where_user_id=user_id,
@@ -113,6 +132,7 @@ def get_user(user_id):
         if len(results) == 0:
             raise exceptions.NotFoundException(
                 "Given user-id not found")
+        return results[0], 200
 
     except exceptions.UnauthorizedException as e:
         return e.description, e.code, e.authentication_header
@@ -120,16 +140,15 @@ def get_user(user_id):
         return e.description, e.code
     finally:
         cur.close()
-    return results[0], 200
 
 # users/all --------------------------------------------------------------------
 def broadcast_message(message):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         user_id = _check_credentials(cur)
-        message_text = str(message)
-        message_id = db_utils.broadcast_message(cur, user_id, message_text)
-        connection.commit()
+
+        print(str(message))
+        message_id = db_utils.broadcast_message(cur, user_id, str(message))
         return  message_id, 200
 
     except exceptions.UnauthorizedException as e:
@@ -142,8 +161,12 @@ def broadcast_message(message):
 # user/{user_id}/received ------------------------------------------------------
 def get_received_messages(user_id):
     try:
-        cur = connection.cursor()
-        _check_credentials(cur)
+        cur = get_connection().cursor()
+        authorized_user_id = _check_credentials(cur)
+        if authorized_user_id != user_id:
+            raise exceptions.UnauthorizedException(
+                "Not enough rights to access the user's received messages!")
+
         messages = db_utils.get_received_messages(cur, user_id)
         return  messages, 200
 
@@ -157,8 +180,12 @@ def get_received_messages(user_id):
 # user/{user_id}/sent ----------------------------------------------------------
 def get_sent_messages(user_id):
     try:
-        cur = connection.cursor()
-        _check_credentials(cur)
+        cur = get_connection().cursor()
+        authorized_user_id = _check_credentials(cur)
+        if authorized_user_id != user_id:
+            raise exceptions.UnauthorizedException(
+                "Not enough rights to access the user's received messages!")
+
         messages = db_utils.get_sent_messages(cur, user_id)
         return  messages, 200
 
@@ -172,13 +199,12 @@ def get_sent_messages(user_id):
 # message/{msg_id} -------------------------------------------------------------
 def get_message(message_id):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         user_id = _check_credentials(cur)
         result = db_utils.get_message(
             cursor=cur,
             user_id=user_id,
             message_id=message_id)
-        connection.commit()
         return result, 200
 
     except exceptions.UnauthorizedException as e:
@@ -190,13 +216,12 @@ def get_message(message_id):
 
 def delete_message(message_id):
     try:
-        cur = connection.cursor()
+        cur = get_connection().cursor()
         user_id = _check_credentials(cur)
         db_utils.delete_message(
             cursor=cur,
             user_id=user_id,
             message_id=message_id)
-        connection.commit()
         return "Message successfully delated", 200
 
     except exceptions.UnauthorizedException as e:
@@ -221,13 +246,15 @@ def _check_credentials(cursor=None):
             "You must use Basic HTTP authentication to access this resource")
 
     # query the database for user information
-    cur = connection.cursor() if cursor is None else cursor
+    cur = get_connection().cursor() if cursor is None else cursor
     user_ids = db_utils.query_users(
         cursor=cur,
         where_username=auth.username,
         where_password=auth.password,
         select_user_id=True)
     if cursor is None: cur.close()
+
+    print(user_ids)
 
     # check if the credentials are valid
     if len(user_ids) == 0:

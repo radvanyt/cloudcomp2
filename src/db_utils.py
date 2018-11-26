@@ -24,10 +24,11 @@ def add_user(
 
     # insert new user into the database
     try:
-        cursor.execute(
-            "INSERT INTO Users (username, password) VALUES (%s, %s) RETURNING user_id;", 
-            [username, password])
-        result = cursor.fetchone()
+        with cursor.connection:
+            cursor.execute(
+                "INSERT INTO Users (username, password) VALUES (%s, %s) RETURNING user_id;", 
+                [username, password])
+            result = cursor.fetchone()
         return result[0]
 
     except ps.DataError as e:
@@ -59,17 +60,18 @@ def update_user(
 
     # insert new user into the database
     try:
-        cursor.execute(
-            '''
-            UPDATE Users
-            SET username=%s, password=%s
-            WHERE user_id=%s
-            RETURNING user_id;''', 
-            [new_username, new_password, user_id])
-        result = cursor.fetchone()
-        if result is None:
-            raise exceptions.NotFoundException(
-                "User-id not found")
+        with cursor.connection:
+            cursor.execute(
+                '''
+                UPDATE Users
+                SET username=%s, password=%s
+                WHERE user_id=%s
+                RETURNING user_id;''',
+                [new_username, new_password, user_id])
+            result = cursor.fetchone()
+            if result is None:
+                raise exceptions.NotFoundException(
+                    "User-id not found")
         return result[0]
 
     except ps.DataError as e:
@@ -85,7 +87,7 @@ def update_user(
             raise exceptions.ConflictException(
                 "Username already in use")
         else:
-            raise exceptions.ConflictException(e.pgerror)
+            raise e
 
 #-------------------------------------------------------------------------------
 # Work in Progress
@@ -121,141 +123,187 @@ def query_users(
         where_str += " AND password = %s"
         values.append(where_password)
 
-    cursor.execute(
-        ("SELECT "+select_str+
-         "\nFROM users"+
-         "\nWHERE " + where_str + ";"),
-        values)
-    return _to_dict(cursor.fetchall(), attrs)
+    try:
+        cursor.execute(
+            ("SELECT "+select_str+
+            "\nFROM users"+
+            "\nWHERE " + where_str + ";"),
+            values)
+        return _to_dict(cursor.fetchall(), attrs)
+
+    except ps.DataError as e:
+        if e.pgcode == errorcodes.STRING_DATA_RIGHT_TRUNCATION:
+            raise exceptions.BadRequestException(
+                '''Invalid username, it must contain only alphanumeric 
+                characters or \'-\' or \'_\'''')
+        else:
+            raise exceptions.BadRequestException(e.pgerror)
 
 def send_message(cursor, sender_id, receiver_ids, msg_text):
-    cursor.execute(
-        '''
-        INSERT INTO Messages (sender_id, message_text, timestamp) 
-        VALUES (%s, %s, current_timestamp) RETURNING message_id;
-        ''', [sender_id, msg_text])
-    insert_id = cursor.fetchone()[0]
-
     num_receivers = len(receiver_ids)
     assert num_receivers > 0
 
-    values = [None]*num_receivers*2
-    for i in range(num_receivers):
-        values[2*i] = insert_id
-        values[2*i+1] = receiver_ids[i]
+    try:
+        with cursor.connection:
+            cursor.execute(
+                '''
+                INSERT INTO Messages (sender_id, message_text, timestamp) 
+                VALUES (%s, %s, current_timestamp) RETURNING message_id;
+                ''', [sender_id, msg_text])
+            insert_id = cursor.fetchone()[0]
 
-    cmd_p1 = "INSERT INTO receivers (message_id, receiver_id, message_read) VALUES"
-    cmd_p2 = " (%s, %s, DEFAULT)"+",(%s, %s, DEFAULT)"*(num_receivers-1)
-    cmd = cmd_p1+cmd_p2+";"
-    cursor.execute(cmd, values)
+            values = [None]*num_receivers*2
+            for i in range(num_receivers):
+                values[2*i] = insert_id
+                values[2*i+1] = receiver_ids[i]
 
-    # TODO check errors
+            cursor.execute(
+                '''
+                INSERT INTO receivers (message_id, receiver_id, message_read)
+                VALUES'''+" (%s,%s,DEFAULT)"+",(%s,%s,DEFAULT)"*(num_receivers-1)+";",
+                values)
+        return insert_id
 
-    return insert_id
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
+    except ps.IntegrityError as e:
+        if e.pgcode == errorcodes.FOREIGN_KEY_VIOLATION:
+            raise exceptions.NotFoundException("Receiver-id not found!")
+        raise e
 
 def get_message(cursor, user_id, message_id):
-    cursor.execute(
-    '''
-    SELECT message_text, sender_id, timestamp
-    FROM Messages
-    WHERE message_id = %s;''', [message_id])
-    result = cursor.fetchone()
+    try:
+        with cursor.connection:
+            cursor.execute(
+            '''
+            SELECT message_text, sender_id, timestamp
+            FROM Messages
+            WHERE message_id = %s;''', [message_id])
+            result = cursor.fetchone()
 
-    if result is None:
-        raise exceptions.NotFoundException(
-            "Message-id not found")
+            if result is None:
+                raise exceptions.NotFoundException(
+                    "Message-id not found")
 
-    message_text, sender_id, timestamp = result
+            message_text, sender_id, timestamp = result
 
-    cursor.execute(
-    '''
-    SELECT receiver_id, message_read
-    FROM Receivers
-    WHERE message_id = %s;''', [message_id])
-    results = _to_dict(cursor.fetchall(), ["receiver_id","message_read"])
+            cursor.execute(
+                '''
+                SELECT receiver_id, message_read
+                FROM Receivers
+                WHERE message_id = %s;''', [message_id])
+            results = _to_dict(
+                cursor.fetchall(),
+                ["receiver_id","message_read"])
 
-    cursor.execute(
-        '''
-        UPDATE Receivers
-        SET message_read = TRUE
-        WHERE message_id = %s AND receiver_id = %s
-        RETURNING *''', [message_id, user_id])
-    
-    update_res = cursor.fetchone()
-    if update_res is None and user_id != sender_id : #id is not the receiver
-        raise exceptions.UnauthorizedException(
-            "You must be either the message receiver or sender in order to retrieve it")
+            cursor.execute(
+                '''
+                UPDATE Receivers
+                SET message_read = TRUE
+                WHERE message_id = %s AND receiver_id = %s
+                RETURNING *''',
+                [message_id, user_id])
 
-    return {"message_text":message_text,
-            "sender_id":sender_id,
-            "timestamp":timestamp,
-            "message_read":results}
+            update_res = cursor.fetchone()
+            if update_res is None and user_id != sender_id : #id is not the receiver
+                raise exceptions.UnauthorizedException(
+                    "You must be either the message receiver or sender in order to retrieve it")
+
+        return {"message_text":message_text,
+                "sender_id":sender_id,
+                "timestamp":timestamp,
+                "message_read":results}
+
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
+    except ps.IntegrityError as e:
+        raise e
 
 def get_received_messages(cursor, user_id):
-    cursor.execute(
-    '''
-    SELECT m.message_id, m.sender_id, m.timestamp
-    FROM Receivers as r, Messages as m
-    WHERE r.receiver_id = %s AND r.message_id = m.message_id;''',
-    (user_id,))
+    try:
+        with cursor.connection():
+            cursor.execute(
+            '''
+            SELECT m.message_id, m.sender_id, m.timestamp
+            FROM Receivers as r, Messages as m
+            WHERE r.receiver_id = %s AND r.message_id = m.message_id;''',
+            [user_id])
+            results = cursor.fetchall()
+        return _to_dict(results, ["message_id", "sender_id", "timestamp"])
 
-    results = cursor.fetchall()
-    return _to_dict(results, ["message_id", "sender_id", "timestamp"])
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
 
 def get_sent_messages(cursor, user_id):
-    cursor.execute(
-    '''
-    SELECT message_id, sender_id, timestamp
-    FROM Messages
-    WHERE sender_id = %s;''',
-    (user_id,))
-
-    results = cursor.fetchall()
-    return _to_dict(results, ["message_id", "sender_id", "timestamp"])
+    try:
+        with cursor.connection:
+            cursor.execute(
+            '''
+            SELECT message_id, sender_id, timestamp
+            FROM Messages
+            WHERE sender_id = %s;''',
+            (user_id,))
+            results = cursor.fetchall()
+        return _to_dict(results, ["message_id", "sender_id", "timestamp"])
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
 
 def delete_message(cursor, user_id, message_id):
-    precondition_cmd = '''
-    SELECT *
-    FROM Receivers
-    WHERE message_id = %s AND message_read=TRUE;'''
-    cursor.execute(precondition_cmd, (message_id,))
-    result = cursor.fetchone()
-    if result is None:
-        cursor.execute(
-            '''
-            DELETE FROM Messages 
-            WHERE message_id = %s 
-            RETURNING message_id;''',
-            (message_id,))
+    try:
+        with cursor.connection:
+            # check if the message is indeed in the database
+            cursor.execute(
+                '''
+                SELECT *
+                FROM Receivers
+                WHERE message_id = %s;''',
+                [message_id])
+            result = cursor.fetchone()
+            if result is None:
+                raise exceptions.NotFoundException("Message-id not found")
 
-        result = cursor.fetchone()
-        if result is None:
-            raise exceptions.NotFoundException(
-                "Message-id not found")
+            # check if any of the receivers has read the message
+            cursor.execute(
+                '''
+                SELECT *
+                FROM Receivers
+                WHERE message_id = %s AND message_read=TRUE;''',
+                [message_id])
+            result = cursor.fetchone()
 
-    else: # somebody has read the message
-        raise exceptions.ConflictException(
-            "Somebody has already read the message, deletion not possible")
-
+            if result is None: # if not remove the message
+                cursor.execute(
+                    '''
+                    DELETE FROM Messages 
+                    WHERE message_id = %s 
+                    RETURNING message_id;''', [message_id])
+                result = cursor.fetchone()
+            else: # somebody has read the message
+                raise exceptions.ConflictException(
+                     "Somebody has already read the message, deletion is not possible")
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
 
 def broadcast_message(cursor, sender_id, message_text):
-    cursor.execute(
-    '''
-    INSERT INTO Messages (sender_id, message_text, timestamp)
-    VALUES (%s, %s, current_timestamp)
-    RETURNING message_id;''', [sender_id, message_text])
-    message_id = cursor.fetchone()[0]
+    try:
+        with cursor.connection:
+            cursor.execute(
+            '''
+            INSERT INTO Messages (sender_id, message_text, timestamp)
+            VALUES (%s, %s, current_timestamp)
+            RETURNING message_id;''', [sender_id, message_text])
+            message_id = cursor.fetchone()[0]
 
-    cursor.execute(
-    '''
-    INSERT INTO Receivers(message_id, receiver_id)
-        SELECT m.message_id, u.user_id
-        FROM Messages as m, Users as u
-        WHERE m.message_id = %s;''', [message_id])
-    return message_id
-
-#-------------------------------------------------------------------------------
-# TO WORK ON
+            cursor.execute(
+            '''
+            INSERT INTO Receivers(message_id, receiver_id)
+                SELECT m.message_id, u.user_id
+                FROM Messages as m, Users as u
+                WHERE m.message_id = %s AND u.user_id != %s;''',
+                [message_id, sender_id])
+        return message_id
+    except ps.DataError as e:
+        raise exceptions.BadRequestException(e.pgerror)
 
 #-------------------------------------------------------------------------------
 def _to_dict(results:list, attributes:list):
