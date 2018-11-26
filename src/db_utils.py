@@ -221,7 +221,7 @@ def get_message(cursor, user_id, message_id):
 
 def get_received_messages(cursor, user_id):
     try:
-        with cursor.connection():
+        with cursor.connection:
             cursor.execute(
             '''
             SELECT m.message_id, m.sender_id, m.timestamp

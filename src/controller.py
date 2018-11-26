@@ -73,12 +73,13 @@ def send_message(user_id, message):
 
         receiver_id = user_id
         sender_id = _check_credentials(cur)
+        message_text = message.decode('utf-8')
 
         msg_id = db_utils.send_message(
             cursor=cur,
             receiver_ids=[receiver_id],
             sender_id=sender_id,
-            msg_text= str(message))
+            msg_text= message_text)
         return msg_id, 200
 
 
@@ -146,9 +147,9 @@ def broadcast_message(message):
     try:
         cur = get_connection().cursor()
         user_id = _check_credentials(cur)
+        message_text = message.decode('utf-8')
 
-        print(str(message))
-        message_id = db_utils.broadcast_message(cur, user_id, str(message))
+        message_id = db_utils.broadcast_message(cur, user_id, message_text)
         return  message_id, 200
 
     except exceptions.UnauthorizedException as e:
@@ -253,8 +254,6 @@ def _check_credentials(cursor=None):
         where_password=auth.password,
         select_user_id=True)
     if cursor is None: cur.close()
-
-    print(user_ids)
 
     # check if the credentials are valid
     if len(user_ids) == 0:
