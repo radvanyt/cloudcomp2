@@ -142,6 +142,29 @@ def get_user(user_id):
     finally:
         cur.close()
 
+
+def get_user_v2(username):
+    try:
+        cur = get_connection().cursor()
+        _check_credentials(cur)
+
+        results = db_utils.query_users(
+            cursor=cur,
+            where_username=username,
+            select_username=True,
+            select_user_id=True)
+        if len(results) == 0:
+            raise exceptions.NotFoundException(
+                "Given username not found")
+        return results[0], 200
+
+    except exceptions.UnauthorizedException as e:
+        return e.description, e.code, e.authentication_header
+    except exceptions.ResponseException as e:
+        return e.description, e.code
+    finally:
+        cur.close()
+
 # users/all --------------------------------------------------------------------
 def broadcast_message(message):
     try:

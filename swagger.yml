@@ -32,17 +32,21 @@ paths:
           name: user_info
           required: true
           schema:
-            $ref: '#/definitions/User'
+            $ref: '#/definitions/User_insert'
 
       responses:
         201:
           description: Successfully created a new user (returning id)
           schema:
             type: integer
+        400:
+          description: Invalid request format
         401:
-          description: Not authorized access
+          description: Invalid credentials
         409:
           description: Another user with same username exists
+        500:
+          description: Internal Server Error
 
     get:
       summary: return all registered users
@@ -59,6 +63,12 @@ paths:
                   type: string
                 user_id:
                   type: integer
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
+        500:
+          description: Internal Server Error
 
 #-------------------------------------------------------------------------------
 
@@ -86,8 +96,15 @@ paths:
           description: Message sent (returning message id)
           schema:
             type: integer
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
         404:
           description: User-id not found
+        500:
+          description: Internal Server Error
+
 
     put:
       summary: update user info
@@ -97,12 +114,18 @@ paths:
           name: user_info
           required: true
           schema:
-            $ref: '#/definitions/User'
+            $ref: '#/definitions/User_insert'
       responses:
         200:
           description: username info updated
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
         404:
           description: User-id not found
+        500:
+          description: Internal Server Error
 
     get:
       summary: return user information
@@ -111,9 +134,37 @@ paths:
         200:
           description: user info retrieved successfully
           schema:
-            $ref: '#/definitions/User'
+            $ref: '#/definitions/User_return'
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
         404:
           description: User-id not found
+        500:
+          description: Internal Server Error
+
+#-------------------------------------------------------------------------------
+  /users/{username}:
+    parameters:
+      - in: path 
+        name: username
+        required: true
+        type: string
+    get:
+      summary: return user information
+      operationId: controller.get_user_v2
+      responses:
+        200:
+          description: user info retrieved successfully
+          schema:
+            $ref: '#/definitions/User_return'
+        401:
+          description: Invalid credentials
+        404:
+          description: Username not found
+        500:
+          description: Internal Server Error
 
 #-------------------------------------------------------------------------------
   /users/all:
@@ -133,6 +184,12 @@ paths:
           description: Message sent to all users (returning message id)
           schema:
             type: integer
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
+        500:
+          description: Internal Server Error
 
 #-------------------------------------------------------------------------------
 
@@ -151,9 +208,13 @@ paths:
           schema:
             type: array
             items:
-              type: integer
+              $ref: '#/definitions/Message'
+        401:
+          description: Invalid credentials (must be logged with same user as {user_id})
         404:
           description: User-id not found
+        500:
+          description: Internal Server Error
 #-------------------------------------------------------------------------------
 
   /users/{user_id}/sent:
@@ -171,11 +232,13 @@ paths:
           schema:
             type: array
             items:
-              type: integer
+              $ref: '#/definitions/Message'
         401:
-          description: Invalid credentials
+          description: Invalid credentials (must be logged with same user as {user_id})
         404:
           description: User-id not found
+        500:
+          description: Internal Server Error
 
 #-------------------------------------------------------------------------------
 
@@ -194,8 +257,12 @@ paths:
           description: Successfully retrieved message's info
           schema:
             $ref: '#/definitions/Message'
+        401:
+          description: Invalid credentials (must be logged as either a {message_id} receiver or the sender)
         404:
           description: Message-id not found
+        500:
+          description: Internal Server Error
 
     delete:
       summary: delete a message (if nobody has read it)
@@ -203,8 +270,12 @@ paths:
       responses:
         200:
           description: Successfully deleted the message
+        401:
+          description: Invalid credentials (must be logged as either the message receiver or sender)
         404:
           description: Message-id not found
+        500:
+          description: Internal Server Error
 #-------------------------------------------------------------------------------
 
 
@@ -212,32 +283,39 @@ paths:
 # API's models
 #-------------------------------------------------------------------------------
 definitions:
-  User:
+  User_insert:
     type: object
     required:
       - username
       - password
     properties:
-      id:
-        type: integer
       username:
         type: string
       password:
         type: string
 
+  User_return:
+    type: object
+    required:
+      - username
+    properties:
+      id:
+        type: integer
+      username:
+        type: string
 
   Message:
     type: object
     required:
       - message_id
-      - sender
+      - sender_id
       - timestamp
     properties:
       message_id: 
-        type: string
+        type: integer
       message_text:
         type: string
-      sender:
+      sender_id:
         type: integer
       timestamp:
         type: string
@@ -247,10 +325,10 @@ definitions:
         items:
           type: object
           required:
-            - user_id
-            - has_read
+            - receiver_id
+            - message_read
           properties:
-            user_id:
+            receiver_id:
               type: integer
-            has_read:
+            message_read:
               type: boolean

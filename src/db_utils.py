@@ -208,8 +208,13 @@ def get_message(cursor, user_id, message_id):
             if update_res is None and user_id != sender_id : #id is not the receiver
                 raise exceptions.UnauthorizedException(
                     "You must be either the message receiver or sender in order to retrieve it")
+            
+            for t in results:
+                if t["receiver_id"] == user_id:
+                    t["message_read"] = True
 
-        return {"message_text":message_text,
+        return {"message_id": message_id,
+                "message_text":message_text,
                 "sender_id":sender_id,
                 "timestamp":timestamp,
                 "message_read":results}
@@ -275,12 +280,15 @@ def delete_message(cursor, user_id, message_id):
                 cursor.execute(
                     '''
                     DELETE FROM Messages 
-                    WHERE message_id = %s 
-                    RETURNING message_id;''', [message_id])
+                    WHERE message_id = %s AND sender_id =%s
+                    RETURNING message_id;''', [message_id, user_id])
                 result = cursor.fetchone()
+                if result is None:
+                    raise exceptions.UnauthorizedException(
+                        "Only the sender user can remove the message")
             else: # somebody has read the message
                 raise exceptions.ConflictException(
-                     "Somebody has already read the message, deletion is not possible")
+                     "The message has already been read by at least a receiver, deletion is not possible")
     except ps.DataError as e:
         raise exceptions.BadRequestException(e.pgerror)
 

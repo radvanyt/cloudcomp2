@@ -15,6 +15,9 @@ def main(debug, port_number):
         arguments={'title': 'Cloud Computing Exercise 2'})
     app.run(port=port_number)
 
+
+
+
 if __name__ == '__main__':
     
     arg_set = set(sys.argv[1:])
@@ -38,7 +41,7 @@ if __name__ == '__main__':
         controller.connect(db_url=database_url)
 
         main(
-            debug=True,#debug,
+            debug=debug,
             port_number=port_number)
 
         controller.close_connection()

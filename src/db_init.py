@@ -34,9 +34,8 @@ def db_init(database_url):
 
     users = [("TamasRadvany", 'password'),
             ("GiorgioMariani", 'password'),
-            ("DonaldKnuth","1 2 3 4 5 7"),
-            ("xX_Memelord99_Xx","PaSsWOrD"),
-            ("bob", "bob")]
+            ("user1","user1"),
+            ("user2","user2")]
     for u,p in users: db_utils.add_user(cur,u,p)
     conn.commit()
 
