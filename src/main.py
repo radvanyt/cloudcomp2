@@ -1,9 +1,12 @@
+# standard modules
 import sys
 import os
 
+# third party modules
 import psycopg2 as ps
 import connexion
 
+# custom modules
 import controller
 
 def main(debug, port_number):
@@ -16,10 +19,8 @@ def main(debug, port_number):
     app.run(port=port_number)
 
 
-
-
 if __name__ == '__main__':
-    
+    # check if server is running on heroku (parameter --heroku)
     arg_set = set(sys.argv[1:])
     if "--heroku" in arg_set:
         arg_set.remove("--heroku")
@@ -29,19 +30,21 @@ if __name__ == '__main__':
         database_url = "postgres://postgres:postgres@localhost/test_db"
         port_number=8080
 
+    # check if server is in debug mode
     if "--debug" in arg_set:
         arg_set.remove("--debug")
         debug=True
     else:
         debug=False
 
+    # check if other falgs are passed to the script, if so return usage
     if len(arg_set) != 0:
         print("Wrong synthax, usage: main.py [--debug][--heroku]")
-    else:
-        controller.connect(db_url=database_url)
-
-        main(
-            debug=debug,
-            port_number=port_number)
-
-        controller.close_connection()
+    else: # otherwise run the application
+        try:
+            controller.connect(db_url=database_url)
+            main(debug=debug,
+                 port_number=port_number)
+        finally:
+            print('REST API server closed successfully!')
+            controller.close_connection()

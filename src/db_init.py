@@ -48,9 +48,11 @@ def db_init(database_url):
 
 
 #===============================================================================
-if __name__ == '__main__':
+# check if the module is being executed
+if __name__ == '__main__': 
     import sys
 
+    # get the db database
     if len(sys.argv) == 1:
         print("usage: python db_init.py <database_url>")
     else:
