@@ -168,7 +168,7 @@ def send_message(cursor, sender_id, receiver_ids, msg_text):
         raise exceptions.BadRequestException(e.pgerror)
     except ps.IntegrityError as e:
         if e.pgcode == errorcodes.FOREIGN_KEY_VIOLATION:
-            raise exceptions.NotFoundException("Receiver-id not found!")
+            raise exceptions.NotFoundException("At least one of the receiver-ids is not associated to a valid user!")
         raise e
 
 def get_message(cursor, user_id, message_id):

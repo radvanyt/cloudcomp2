@@ -15,7 +15,6 @@ def connect(db_url):
     database_url = db_url
     connection = ps.connect(database_url)
 
-
 def get_connection():
     global connection
     if connection.closed:
@@ -26,7 +25,6 @@ def get_connection():
  
 def close_connection():
     connection.close()
-
 
 #users/ ------------------------------------------------------------------------
 def add_user(user_info):
@@ -67,17 +65,18 @@ def get_all_users():
         cur.close()
 
 # users/{user_id} --------------------------------------------------------------
-def send_message(user_id, message):
+def send_message(message):
     try:
         cur = get_connection().cursor()
-
-        receiver_id = user_id
         sender_id = _check_credentials(cur)
-        message_text = message.decode('utf-8')
+
+        # TODO throw error if attributes not in dict
+        message_text = message["message_text"]
+        receiver_ids = message["receiver_ids"]
 
         msg_id = db_utils.send_message(
             cursor=cur,
-            receiver_ids=[receiver_id],
+            receiver_ids=receiver_ids,
             sender_id=sender_id,
             msg_text= message_text)
         return msg_id, 200
@@ -92,6 +91,7 @@ def send_message(user_id, message):
 
 def update_user(user_id, user_info):
     try:
+        # TODO raise exception if attributes not in dir
         username = user_info["username"]
         password = user_info["password"]
 
@@ -141,7 +141,6 @@ def get_user(user_id):
         return e.description, e.code
     finally:
         cur.close()
-
 
 def get_user_v2(username):
     try:
@@ -257,7 +256,6 @@ def delete_message(message_id):
 
 #-------------------------------------------------------------------------------
 ################################################################################
-
 
 def _check_credentials(cursor=None):
     auth = connexion.request.authorization

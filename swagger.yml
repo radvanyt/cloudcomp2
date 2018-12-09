@@ -20,6 +20,12 @@ securityDefinitions:
 security:
   - basicAuth: []
 
+tags:
+  - name: messages
+    description: everything about received and sent messages
+  - name: users
+    description: everything about user information and creation
+
 #-------------------------------------------------------------------------------
 # possible paths to use in the restful API
 #-------------------------------------------------------------------------------
@@ -28,6 +34,8 @@ paths:
     post:
       summary: create a new user
       operationId: controller.add_user
+      tags:
+        - users
       parameters:
         - in: body
           name: user_info
@@ -52,6 +60,8 @@ paths:
     get:
       summary: return all registered users
       operationId: controller.get_all_users
+      tags:
+        - users
       responses:
         200:
           description: Successfully retrieved all users
@@ -80,36 +90,11 @@ paths:
         required: true
         type: integer
 
-    post:
-      summary: send a message to a specific user
-      operationId: controller.send_message
-      consumes:
-        - text/plain
-      parameters:
-        - in: body
-          name: message
-          required: true
-          schema:
-            type: string
-
-      responses:
-        201:
-          description: Message sent (returning message id)
-          schema:
-            type: integer
-        400:
-          description: Invalid request format
-        401:
-          description: Invalid credentials
-        404:
-          description: User-id not found
-        500:
-          description: Internal Server Error
-
-
     put:
       summary: update user info
       operationId: controller.update_user
+      tags:
+        - users
       parameters:
         - in: body
           name: user_info
@@ -131,6 +116,8 @@ paths:
     get:
       summary: return user information
       operationId: controller.get_user
+      tags:
+        - users
       responses:
         200:
           description: user info retrieved successfully
@@ -155,6 +142,8 @@ paths:
     get:
       summary: return user information
       operationId: controller.get_user_v2
+      tags:
+        - users
       responses:
         200:
           description: user info retrieved successfully
@@ -168,29 +157,29 @@ paths:
           description: Internal Server Error
 
 #-------------------------------------------------------------------------------
-  /users/all:
-    post:
-      summary: send a message to all the users
-      operationId: controller.broadcast_message
-      consumes:
-        - text/plain
-      parameters:
-        - in: body
-          name: message
-          required: true
-          schema:
-            type: string
-      responses:
-        201:
-          description: Message sent to all users (returning message id)
-          schema:
-            type: integer
-        400:
-          description: Invalid request format
-        401:
-          description: Invalid credentials
-        500:
-          description: Internal Server Error
+#  /users/all:
+#    post:
+#      summary: send a message to all the users
+#      operationId: controller.broadcast_message
+#      consumes:
+#        - text/plain
+#      parameters:
+#        - in: body
+#          name: message
+#          required: true
+#          schema:
+#            type: string
+#      responses:
+#        201:
+#          description: Message sent to all users (returning message id)
+#          schema:
+#            type: integer
+#        400:
+#          description: Invalid request format
+#        401:
+#          description: Invalid credentials
+#        500:
+#          description: Internal Server Error
 
 #-------------------------------------------------------------------------------
 
@@ -198,6 +187,8 @@ paths:
     get:
       summary: retrieve all messages received by given user
       operationId: controller.get_received_messages
+      tags:
+        - messages
       parameters:
         - in: path 
           name: user_id
@@ -209,7 +200,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/Message'
+              $ref: '#/definitions/Message_return'
         401:
           description: Invalid credentials (must be logged with same user as {user_id})
         404:
@@ -222,6 +213,8 @@ paths:
     get:
       summary: retrieve all messages sent by given user
       operationId: controller.get_sent_messages
+      tags:
+        - messages
       parameters:
         - in: path 
           name: user_id
@@ -233,7 +226,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/Message'
+              $ref: '#/definitions/Message_return'
         401:
           description: Invalid credentials (must be logged with same user as {user_id})
         404:
@@ -242,6 +235,32 @@ paths:
           description: Internal Server Error
 
 #-------------------------------------------------------------------------------
+  /messages/:
+    post:
+      summary: send a message to one or more users
+      operationId: controller.send_message
+      tags:
+        - messages
+      parameters:
+        - in: body
+          name: message
+          required: true
+          schema:
+            $ref: '#/definitions/Message_insert'
+
+      responses:
+        201:
+          description: Message sent (returning message id)
+          schema:
+            type: integer
+        400:
+          description: Invalid request format
+        401:
+          description: Invalid credentials
+        404:
+          description: User-id not found
+        500:
+          description: Internal Server Error
 
   /messages/{message_id}:
     parameters:
@@ -253,11 +272,13 @@ paths:
     get:
       summary: retrieve a message detail information
       operationId: controller.get_message
+      tags:
+        - messages
       responses:
         200:
           description: Successfully retrieved message's info
           schema:
-            $ref: '#/definitions/Message'
+            $ref: '#/definitions/Message_return'
         401:
           description: Invalid credentials (must be logged as either a {message_id} receiver or the sender)
         404:
@@ -268,6 +289,8 @@ paths:
     delete:
       summary: delete a message (if nobody has read it)
       operationId: controller.delete_message
+      tags:
+        - messages
       responses:
         200:
           description: Successfully deleted the message
@@ -305,7 +328,21 @@ definitions:
       username:
         type: string
 
-  Message:
+  #-----------------------------------------------------------------------------
+  Message_insert:
+    type: object
+    required:
+      - message_text
+      - receiver_ids
+    properties:
+      message_text:
+        type: string
+      receiver_ids:
+        type: array
+        items:
+          type: integer
+
+  Message_return:
     type: object
     required:
       - message_id
