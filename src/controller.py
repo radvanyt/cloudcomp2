@@ -10,6 +10,7 @@ import exceptions
 def add_user(user_info):
     try:
         _check_credentials()
+        # TODO encrypt password before passing it to function
         new_user_id = redis_utils.add_user(
             username=user_info["username"],
             password=user_info["password"])
@@ -39,7 +40,7 @@ def send_message(message):
         receiver_ids = message["receiver_ids"]
 
         # TODO encrypt message_text 
-        message_text_encrypted = client.encrypt(message_text)
+        message_text_encrypted = message_text
         msg_id = redis_utils.send_message(
             recipient_ids=receiver_ids,
             sender_id=sender_id,
@@ -58,6 +59,7 @@ def update_user(user_id, user_info):
         username = user_info["username"]
         password = user_info["password"]
 
+        # TODO encrypt password
         authorized_user_id = _check_credentials()
         if authorized_user_id != user_id:
             raise exceptions.UnauthorizedException(
@@ -135,6 +137,7 @@ def get_message(message_id):
         result = redis_utils.get_message(
             user_id=user_id,
             message_id=message_id)
+        # TODO decrypt message
         return result, 200
 
     except exceptions.UnauthorizedException as e:
@@ -170,4 +173,8 @@ def _check_credentials():
         "Basic" != headers['Authorization'].split()[0]):
         raise exceptions.UnauthorizedException(
             "You must use Basic HTTP authentication to access this resource")
-    return redis_utils.check_credentials(auth.username, auth.password)
+
+    username = auth.username
+    password = auth.password 
+    # TODO encrypt password so in order to test it with the encrypted stored counterpart
+    return redis_utils.check_credentials(username, password)

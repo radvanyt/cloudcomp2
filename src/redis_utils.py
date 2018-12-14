@@ -29,12 +29,6 @@ def connect(url:str):
     r = redis.from_url(url=url)
     LOCK = r.lock('lock')
 
-    #r = redis.Redis(
-        #host='localhost',
-        #port=6379,
-        #db=0)
-
-
 def add_user(username:str, password:str):
     # check if username is valid
     if len(username) > USR_MAX_LEN or len(password)> USR_MAX_LEN:
