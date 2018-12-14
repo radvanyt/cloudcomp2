@@ -21,3 +21,7 @@ class NotFoundException(ResponseException):
 class ConflictException(ResponseException):
     def __init__(self, description="Resource conflict!"):
         super().__init__(409, description)
+
+class InternalErrorException(ResponseException):
+        def __init__(self, description="Internal server error!"):
+            super().__init__(501, description)

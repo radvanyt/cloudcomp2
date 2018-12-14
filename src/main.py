@@ -3,11 +3,11 @@ import sys
 import os
 
 # third party modules
-import psycopg2 as ps
 import connexion
 
 # custom modules
 import controller
+import redis_utils
 
 def main(debug, port_number):
     app = connexion.App(__name__, specification_dir='../', debug=debug)
@@ -24,10 +24,10 @@ if __name__ == '__main__':
     arg_set = set(sys.argv[1:])
     if "--heroku" in arg_set:
         arg_set.remove("--heroku")
-        database_url = os.environ['DATABASE_URL']
+        database_url = os.environ['REDIS_URL']
         port_number = int(os.environ['PORT'])
     else:
-        database_url = "postgres://postgres:postgres@localhost/test_db"
+        database_url = "redis://localhost:6379"
         port_number=8080
 
     # check if server is in debug mode
@@ -40,11 +40,12 @@ if __name__ == '__main__':
     # check if other falgs are passed to the script, if so return usage
     if len(arg_set) != 0:
         print("Wrong synthax, usage: main.py [--debug][--heroku]")
+
     else: # otherwise run the application
         try:
-            controller.connect(db_url=database_url)
+            redis_utils.connect(url=database_url)
+            #redis_utils.init()
             main(debug=debug,
                  port_number=port_number)
         finally:
             print('REST API server closed successfully!')
-            controller.close_connection()
