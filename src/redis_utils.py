@@ -273,7 +273,7 @@ def _msg_read_key(msg_id:int):
 #----------------------------------
 
 def init():
-    r.flushall()
+    r.flushall(True)
     add_user('root','root')
     add_user('user1','pass')
     add_user('user2','pass')
