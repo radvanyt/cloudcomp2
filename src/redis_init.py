@@ -9,11 +9,14 @@ def redis_init(database_url):
 #===============================================================================
 # check if the module is being executed
 if __name__ == '__main__': 
-    import sys
+    import sys, os
 
     # get the db database
-    if len(sys.argv) == 1:
-        print("usage: python redis_init.py <database_url>")
+    if len(sys.argv) != 2:
+        print("usage: python redis_init.py --heroku|<database_url>")
+    
+    if "--heroku" in sys.argv[1]:
+        database_url = os.environ['REDIS_URL']
     else:
         database_url = sys.argv[1]
         redis_init(database_url)
