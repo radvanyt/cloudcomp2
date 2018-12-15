@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     else: # otherwise run the application
         try:
-            redis_utils.connect(url=database_url)
+            redis_utils.connect(url=database_url, encrypt=True)
             #redis_utils.init()
             main(debug=debug,
                  port_number=port_number)

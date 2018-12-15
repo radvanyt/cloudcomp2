@@ -1,7 +1,9 @@
 import datetime
 import re
+import os
 
 import redis
+import boto3
 
 import exceptions
 
@@ -24,10 +26,38 @@ USR_MAX_LEN = 32
 
 r = None
 LOCK = None
-def connect(url:str):
-    global r, LOCK
+
+USE_ENCRYPTION = None
+KMS_CLIENT = None
+KMS_KEY_ID = None
+
+def connect(url:str, encrypt=False):
+    global r, LOCK, USE_ENCRYPTION, KMS_CLIENT, KMS_KEY_ID
     r = redis.from_url(url=url)
     LOCK = r.lock('lock')
+
+    # encryption variables
+    USE_ENCRYPTION = encrypt
+    KMS_KEY_ID = os.environ['ICE_KEY_ID']
+    KMS_CLIENT = boto3.client(
+        'kms',
+        region_name='us-east-1',
+        aws_access_key_id=os.environ['ICE_AWS_ACCESS_KEY_ID'],
+        aws_secret_access_key=os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
+
+def _encrypt(plaintext:str):
+    if USE_ENCRYPTION:
+        return KMS_CLIENT.encrypt(KeyId=KMS_KEY_ID, Plaintext=plaintext)
+    else:
+        return plaintext
+
+
+def _decrypt(cipher:str):
+    if USE_ENCRYPTION:
+        return KMS_CLIENT.decrypt(CiphertextBlob=cipher)
+    else:
+        return cipher
+
 
 def add_user(username:str, password:str):
     # check if username is valid
@@ -44,6 +74,9 @@ def add_user(username:str, password:str):
         if r.exists(_username_key(username)):
             raise exceptions.ConflictException('Username aready used!')
 
+        # encrypt password
+        password = _encrypt(password)
+
         # update database state
         user_id = r.incr(USER_COUNTER)
         r.set(_username_key(username), user_id)
@@ -59,6 +92,9 @@ def update_user(user_id:int, new_username:str, new_password:str):
     if not re.match(username_pattern, new_username):
         raise exceptions.BadRequestException(
             "Invalid username, it must contain only alphanumeric characters or '-' '_' and not start with a number")
+
+        # encrypt password
+        new_password = _encrypt(new_password)
 
     with LOCK:
         # check if another user with same name exists
@@ -86,6 +122,9 @@ def send_message(
             if not r.exists(_user_key(recipient_id)):
                 raise exceptions.NotFoundException(
                     'The recipient-id '+str(recipient_id)+' is not associated to an existing user!')
+
+        # encrypt password
+        message_text = _encrypt(message_text)
 
         message_id = r.incr(MESSAGE_COUNTER)
         r.hmset(_msg_key(message_id),
@@ -121,6 +160,9 @@ def get_message(user_id:int, message_id:int):
         message_text = message['message_text']
         timestamp = message['timestamp']
 
+        # decrypt password
+        message_text = _decrypt(message_text)
+
         isreceiver = user_id in recipient_ids
         issender = user_id == sender_id
         message_obj = {
@@ -131,8 +173,9 @@ def get_message(user_id:int, message_id:int):
             'timestamp':timestamp}
 
         if isreceiver:
-            r.sadd(_msg_read_key(message_id), user_id)
-            message_obj['have_read'].append(user_id)
+            added = r.sadd(_msg_read_key(message_id), user_id)
+            if added == 0:
+                message_obj['have_read'].append(user_id)
             return message_obj
         elif issender:
             return message_obj
@@ -192,7 +235,7 @@ def delete_message(user_id:int, message_id:int):
                 return message_id
         else:
             raise exceptions.UnauthorizedException(
-                'You have to be either a recipient or the sender of the message to retrieve it!') 
+                'You have to be the sender of the message in order to delete it!') 
 
 def get_all_users():
     users = []
@@ -224,8 +267,13 @@ def check_credentials(username:str, password:str):
     if user_id_raw is None:
         raise exceptions.UnauthorizedException('Authentication username not found in database!')
 
+    # get user-id and password
     user_id = _b2i(user_id_raw)
     password_target = _b2s(r.hget(_user_key(user_id), 'password'))
+    
+    # decrypt password
+    password_target = _decrypt(password_target)
+
     if password != password_target:
         raise exceptions.UnauthorizedException('Invalid password for username!')
     return user_id
