@@ -256,19 +256,19 @@ def _username_key(username:str):
     return USER_DOMAIN+'username:'+str(username)
 
 def _user_received_key(user_id:int):
-    return _user_key(user_id)+RECEIVED
+    return USER_DOMAIN+str(user_id)+RECEIVED
 
 def _user_sent_key(user_id:int):
-    return _user_key(user_id)+SENT
+    return USER_DOMAIN+str(user_id)+SENT
 
 def _msg_key(msg_id:int):
     return MESSAGE_DOMAIN+str(msg_id)
 
 def _msg_rec_key(msg_id:int):
-    return _msg_key(msg_id)+RECIPIENTS
+    return MESSAGE_DOMAIN+str(msg_id)+RECIPIENTS
 
 def _msg_read_key(msg_id:int):
-    return _msg_key(msg_id)+READ
+    return MESSAGE_DOMAIN+str(msg_id)+READ
 #----------------------------------
 #----------------------------------
 
