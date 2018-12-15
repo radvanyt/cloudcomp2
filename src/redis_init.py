@@ -19,4 +19,4 @@ if __name__ == '__main__':
         database_url = os.environ['REDIS_URL']
     else:
         database_url = sys.argv[1]
-        redis_init(database_url)
+    redis_init(database_url)

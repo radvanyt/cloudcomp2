@@ -136,7 +136,7 @@ def get_message(user_id:int, message_id:int):
 
         if isreceiver:
             r.sadd(_msg_read_key(message_id), user_id)
-            message_obj['have_read'].add(user_id)
+            message_obj['have_read'].append(user_id)
             return message_obj
         elif issender:
             return message_obj
