@@ -33,13 +33,11 @@ def add_user(username:str, password:str):
     # check if username is valid
     if len(username) > USR_MAX_LEN or len(password)> USR_MAX_LEN:
             raise exceptions.BadRequestException(
-            '''Invalid username or password, the 
-            username/password lenght must be less than or equal to '''+str(USR_MAX_LEN)+"!")
+            "Invalid username or password, the username/password lenght must be less than or equal to "+str(USR_MAX_LEN)+"!")
     username_pattern = r"[a-zA-Z_-][a-zA-Z0-9_-]*\Z"
     if not re.match(username_pattern, username):
         raise exceptions.BadRequestException(
-            '''Invalid username, it must contain only alphanumeric 
-            characters or '-' '_' and not start with a number''')
+            "Invalid username, it must contain only alphanumeric characters or '-' '_' and not start with a number")
 
     with LOCK:
         # check if another user with same name exists
@@ -56,13 +54,11 @@ def update_user(user_id:int, new_username:str, new_password:str):
     # check if username is valid
     if len(new_username)>USR_MAX_LEN or len(new_password)>USR_MAX_LEN:
         raise exceptions.BadRequestException(
-            '''Invalid username or password, the 
-            username/password lenght must be less than or equal to '''+str(USR_MAX_LEN)+"!")
+            "Invalid username or password, the username/password lenght must be less than or equal to "+str(USR_MAX_LEN)+"!")
     username_pattern = r"[a-zA-Z_-][a-zA-Z0-9_-]*\Z"
     if not re.match(username_pattern, new_username):
         raise exceptions.BadRequestException(
-            '''Invalid username, it must contain only alphanumeric 
-            characters or '-' '_' and not start with a number''')
+            "Invalid username, it must contain only alphanumeric characters or '-' '_' and not start with a number")
 
     with LOCK:
         # check if another user with same name exists

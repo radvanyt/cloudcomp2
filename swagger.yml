@@ -298,6 +298,8 @@ paths:
           description: Invalid credentials (must be logged as either the message receiver or sender)
         404:
           description: Message-id not found
+        409:
+          description: Message already read by at least a receiver
         500:
           description: Internal Server Error
 #-------------------------------------------------------------------------------
