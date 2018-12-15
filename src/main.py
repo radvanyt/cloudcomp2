@@ -37,15 +37,21 @@ if __name__ == '__main__':
     else:
         debug=False
 
+    # check if the server should encrypt the data
+    if "--encrypt" in arg_set:
+        arg_set.remove("--encrypt")
+        encrypt=True
+    else:
+        encrypt=False
+
     # check if other falgs are passed to the script, if so return usage
     if len(arg_set) != 0:
-        print("Wrong synthax, usage: main.py [--debug][--heroku]")
+        print("Wrong synthax, usage: main.py [--debug][--heroku][--encrypt]")
 
     else: # otherwise run the application
         try:
-            redis_utils.connect(url=database_url, encrypt=True)
+            redis_utils.connect(url=database_url, encrypt=encrypt)
             #redis_utils.init()
-            main(debug=debug,
-                 port_number=port_number)
+            main(debug=debug, port_number=port_number)
         finally:
             print('REST API server closed successfully!')

@@ -1,6 +1,7 @@
 import datetime
 import re
 import os
+import base64
 
 import redis
 import boto3
@@ -23,7 +24,9 @@ ALL = ':all'
 #---------------------------
 MAX_TRANSACTION_ATTEMPS = 10
 USR_MAX_LEN = 32
+MSG_MAX_LEN = 2048*2
 
+#Global variables--------------
 r = None
 LOCK = None
 
@@ -38,23 +41,30 @@ def connect(url:str, encrypt=False):
 
     # encryption variables
     USE_ENCRYPTION = encrypt
-    KMS_KEY_ID = os.environ['ICE_KEY_ID']
+    KMS_KEY_ID = 'arn:aws:kms:us-east-1:465869454039:key/f2d0202f-1cf9-4a1b-9b19-ed1d0d7d8996'#os.environ['ICE_KEY_ID']
     KMS_CLIENT = boto3.client(
         'kms',
         region_name='us-east-1',
-        aws_access_key_id=os.environ['ICE_AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
+        aws_access_key_id='AKIAJNJKBXAHZ5HLGDHA',#os.environ['ICE_AWS_ACCESS_KEY_ID'],
+        aws_secret_access_key='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') #os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
 
 def _encrypt(plaintext:str):
     if USE_ENCRYPTION:
-        return KMS_CLIENT.encrypt(KeyId=KMS_KEY_ID, Plaintext=plaintext)
+        result = KMS_CLIENT.encrypt(KeyId=KMS_KEY_ID, Plaintext=plaintext)
+        password = result['CiphertextBlob']
+        pad = len(password)%4
+        p = password + b'='*pad
+        byte_password = base64.standard_b64encode(p)
+        return byte_password
     else:
         return plaintext
 
 
 def _decrypt(cipher:str):
     if USE_ENCRYPTION:
-        return KMS_CLIENT.decrypt(CiphertextBlob=cipher)
+        cipher = base64.standard_b64decode(cipher).strip(b'=')
+        result = KMS_CLIENT.decrypt(CiphertextBlob=cipher)
+        return result['Plaintext'].decode('utf-8')
     else:
         return cipher
 
@@ -123,6 +133,11 @@ def send_message(
                 raise exceptions.NotFoundException(
                     'The recipient-id '+str(recipient_id)+' is not associated to an existing user!')
 
+        # check that the message length is valid
+        if len(message_text) >= MSG_MAX_LEN:
+            raise exceptions.BadRequestException(
+                "The message length must be less than "+ str(MSG_MAX_LEN) + "!")
+
         # encrypt password
         message_text = _encrypt(message_text)
 
@@ -174,7 +189,7 @@ def get_message(user_id:int, message_id:int):
 
         if isreceiver:
             added = r.sadd(_msg_read_key(message_id), user_id)
-            if added == 0:
+            if added != 0:
                 message_obj['have_read'].append(user_id)
             return message_obj
         elif issender:
@@ -313,13 +328,14 @@ def _msg_rec_key(msg_id:int):
 
 def _msg_read_key(msg_id:int):
     return MESSAGE_DOMAIN+str(msg_id)+READ
-#----------------------------------
-#----------------------------------
+#-------------------------------------------------------------------------------
+
 
 def init():
     r.flushall(True)
     add_user('root','root')
-    add_user('user1','pass')
-    add_user('user2','pass')
-    add_user('user3','pass')
-    add_user('user4','pass')
+    add_user('user1','password')
+    add_user('user2','password')
+    add_user('user3','password')
+    add_user('user4','password')
+    check_credentials('user1', 'password')
