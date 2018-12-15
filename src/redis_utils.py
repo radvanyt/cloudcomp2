@@ -45,7 +45,7 @@ def connect(url:str, encrypt=False):
     KMS_CLIENT = boto3.client(
         'kms',
         region_name='us-east-1',
-        aws_access_key_id='os.environ['ICE_AWS_ACCESS_KEY_ID'],
+        aws_access_key_id=os.environ['ICE_AWS_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
 
 def _encrypt(plaintext:str):
