@@ -79,13 +79,13 @@ def add_user(username:str, password:str):
         raise exceptions.BadRequestException(
             "Invalid username, it must contain only alphanumeric characters or '-' '_' and not start with a number")
 
+    # encrypt password
+    password = _encrypt(password)
+
     with LOCK:
         # check if another user with same name exists
         if r.exists(_username_key(username)):
             raise exceptions.ConflictException('Username aready used!')
-
-        # encrypt password
-        password = _encrypt(password)
 
         # update database state
         user_id = r.incr(USER_COUNTER)
@@ -103,8 +103,8 @@ def update_user(user_id:int, new_username:str, new_password:str):
         raise exceptions.BadRequestException(
             "Invalid username, it must contain only alphanumeric characters or '-' '_' and not start with a number")
 
-        # encrypt password
-        new_password = _encrypt(new_password)
+    # encrypt password
+    new_password = _encrypt(new_password)
 
     with LOCK:
         # check if another user with same name exists
