@@ -5,6 +5,7 @@ import psycopg2.errorcodes as errorcodes
 
 import exceptions
 
+DEFAULT_DB = "postgres://postgres:postgres@localhost/postgres"
 
 def add_user(
     cursor:ps.extensions.connection,

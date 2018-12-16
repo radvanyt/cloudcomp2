@@ -8,6 +8,9 @@ import connexion
 
 # custom modules
 import controller
+import db_utils
+
+
 
 def main(debug, port_number):
     app = connexion.App(__name__, specification_dir='../', debug=debug)
@@ -27,7 +30,7 @@ if __name__ == '__main__':
         database_url = os.environ['DATABASE_URL']
         port_number = int(os.environ['PORT'])
     else:
-        database_url = "postgres://postgres:postgres@localhost/test_db"
+        database_url = db_utils.DEFAULT_DB
         port_number=8080
 
     # check if server is in debug mode

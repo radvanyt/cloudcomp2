@@ -53,8 +53,8 @@ if __name__ == '__main__':
     import sys
 
     # get the db database
-    if len(sys.argv) == 1:
+    if len(sys.argv) > 2:
         print("usage: python db_init.py <database_url>")
     else:
-        database_url = sys.argv[1]
+        database_url = db_utils.DEFAULT_DB if len(sys.argv) == 1 else sys.argv[1] 
         db_init(database_url)
