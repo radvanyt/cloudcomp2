@@ -91,7 +91,7 @@ paths:
         type: integer
 
     put:
-      summary: update user info
+      summary: update {user-id}'s info (you must authenticate as {user-id})
       operationId: controller.update_user
       tags:
         - users
@@ -185,7 +185,7 @@ paths:
 
   /users/{user_id}/received:
     get:
-      summary: retrieve all messages received by given user
+      summary: retrieve all messages received by {user-id} (you must authenticate as {user-id})
       operationId: controller.get_received_messages
       tags:
         - messages
@@ -211,7 +211,7 @@ paths:
 
   /users/{user_id}/sent:
     get:
-      summary: retrieve all messages sent by given user
+      summary: retrieve all messages sent by {user-id} (you must authenticate as {user-id})
       operationId: controller.get_sent_messages
       tags:
         - messages
@@ -270,7 +270,7 @@ paths:
         type: integer
 
     get:
-      summary: retrieve a message detail information
+      summary: retrieve a message detail information (you must authenticate as the sender or one of the receivers)
       operationId: controller.get_message
       tags:
         - messages
@@ -287,7 +287,7 @@ paths:
           description: Internal Server Error
 
     delete:
-      summary: delete a message (if nobody has read it)
+      summary: delete a message (if nobody has read it) (you must authenticate as the sender of the message)
       operationId: controller.delete_message
       tags:
         - messages
