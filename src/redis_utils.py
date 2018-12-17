@@ -40,13 +40,15 @@ def connect(url:str, encrypt=False):
     LOCK = r.lock('lock')
 
     # encryption variables
-    USE_ENCRYPTION = encrypt
-    KMS_KEY_ID = os.environ['ICE_KEY_ID']
-    KMS_CLIENT = boto3.client(
-        'kms',
-        region_name='us-east-1',
-        aws_access_key_id=os.environ['ICE_AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
+    if encrypt:
+        USE_ENCRYPTION = encrypt
+        KMS_KEY_ID = os.environ['ICE_KEY_ID']
+        KMS_CLIENT = boto3.client(
+            'kms',
+            region_name='us-east-1',
+            aws_access_key_id=os.environ['ICE_AWS_ACCESS_KEY_ID'],
+            aws_secret_access_key=os.environ['ICE_AWS_SECRET_ACCESS_KEY'])
+
 
 def _encrypt(plaintext:str):
     if USE_ENCRYPTION:
